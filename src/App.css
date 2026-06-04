@@ -52,6 +52,61 @@
   border-color: transparent;
 }
 
+/* ---------- controls ---------- */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.control-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.control-label {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.control-select select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.control-select select:hover {
+  border-color: #455;
+}
+
+.side-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.side-row .energy {
+  flex: 1;
+}
+.bot-badge {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--accent);
+}
+.bot-badge.black {
+  color: #d8b4fe;
+}
+
 /* ---------- energy ---------- */
 .energy {
   display: flex;
