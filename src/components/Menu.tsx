@@ -11,6 +11,13 @@ const CONTROL_OPTIONS: { value: string; label: string }[] = [
   { value: 'hard', label: 'Hard bot' },
 ];
 
+const SPEED_OPTIONS: { value: number; label: string }[] = [
+  { value: 0.4, label: 'Slow' },
+  { value: 0.6, label: 'Normal' },
+  { value: 0.8, label: 'Brisk' },
+  { value: 1.0, label: 'Fast' },
+];
+
 function toConfig(value: string): ControllerConfig {
   return value === 'human' ? { kind: 'human' } : { kind: 'bot', difficulty: value as Difficulty };
 }
@@ -19,21 +26,25 @@ export function Menu() {
   const startLocal = useAppStore((s) => s.startLocal);
   const startOnline = useAppStore((s) => s.startOnline);
   const setController = useGameStore((s) => s.setController);
+  const setSpeed = useGameStore((s) => s.setSpeed);
   const reset = useGameStore((s) => s.reset);
 
   const [white, setWhite] = useState('human');
   const [black, setBlack] = useState('easy');
+  // default to the player's saved speed so starting a game never resets it
+  const [speed, setSpeedChoice] = useState(() => useGameStore.getState().speed);
   const [joinCode, setJoinCode] = useState('');
 
   function playLocal() {
     setController('white', toConfig(white));
     setController('black', toConfig(black));
+    setSpeed(speed); // initial speed (still adjustable live in-game)
     reset(); // fresh board for the chosen matchup
     startLocal();
   }
 
   function createOnline() {
-    startOnline(makeRoomCode());
+    startOnline(makeRoomCode(), speed);
   }
 
   function joinOnline() {
@@ -48,6 +59,21 @@ export function Menu() {
         Real-time chess. Spend energy to deploy pieces from your hand — they fight on their own.
         Capture the enemy king to win.
       </p>
+
+      <div className="menu-speed">
+        <span className="control-label">Game speed</span>
+        <select
+          data-testid="menu-speed"
+          value={String(speed)}
+          onChange={(e) => setSpeedChoice(Number(e.target.value))}
+        >
+          {SPEED_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <section className="menu-card">
         <h2 className="menu-h">Local</h2>

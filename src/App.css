@@ -393,6 +393,21 @@
   margin: 0 0 8px;
   line-height: 1.5;
 }
+.menu-speed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.menu-speed select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
 .menu-card {
   background: var(--panel);
   border: 1px solid var(--line);

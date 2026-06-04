@@ -10,14 +10,15 @@ export interface RoomHandlers {
 
 let ws: WebSocket | null = null;
 
-function roomUrl(code: string): string {
+function roomUrl(code: string, speed?: number): string {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${location.host}/api/room/${encodeURIComponent(code)}/ws`;
+  const query = speed != null ? `?speed=${encodeURIComponent(speed)}` : '';
+  return `${proto}//${location.host}/api/room/${encodeURIComponent(code)}/ws${query}`;
 }
 
-export function connect(code: string, handlers: RoomHandlers): void {
+export function connect(code: string, handlers: RoomHandlers, speed?: number): void {
   disconnect();
-  const socket = new WebSocket(roomUrl(code));
+  const socket = new WebSocket(roomUrl(code, speed));
   ws = socket;
   socket.addEventListener('message', (e) => {
     try {

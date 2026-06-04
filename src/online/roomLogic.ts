@@ -5,6 +5,7 @@
 // the exact same engine the local game uses — no second implementation.
 import type { GameState, Player } from '../game/types';
 import { createInitialState, deployCard, tick } from '../game/gameEngine';
+import { DEFAULT_SPEED, MAX_SPEED, MIN_SPEED } from '../game/constants';
 import type { RoomPhase } from './protocol';
 
 export interface RoomState {
@@ -12,24 +13,31 @@ export interface RoomState {
   phase: RoomPhase;
   /** authoritative virtual clock (ms). */
   simNow: number;
+  /** game-speed multiplier chosen at room creation; sim advances at real*speed. */
+  speed: number;
+}
+
+function clampSpeed(s: number): number {
+  if (!Number.isFinite(s) || s <= 0) return DEFAULT_SPEED;
+  return Math.min(MAX_SPEED, Math.max(MIN_SPEED, s));
 }
 
 /** A room that exists but has not started (waiting for both seats to fill). */
-export function createRoom(now: number): RoomState {
-  return { game: createInitialState(now), phase: 'waiting', simNow: now };
+export function createRoom(now: number, speed: number = DEFAULT_SPEED): RoomState {
+  return { game: createInitialState(now), phase: 'waiting', simNow: now, speed: clampSpeed(speed) };
 }
 
-/** Start (or restart, for a rematch) a fresh game. */
-export function startGame(now: number): RoomState {
-  return { game: createInitialState(now), phase: 'playing', simNow: now };
+/** Start (or restart, for a rematch) a fresh game at the room's speed. */
+export function startGame(now: number, speed: number = DEFAULT_SPEED): RoomState {
+  return { game: createInitialState(now), phase: 'playing', simNow: now, speed: clampSpeed(speed) };
 }
 
-/** Advance the authoritative simulation by `dtMs` of game time. */
+/** Advance the authoritative simulation by `dtMs` of real time, scaled by speed. */
 export function advanceRoom(room: RoomState, dtMs: number): RoomState {
   if (room.phase !== 'playing') return room;
-  const simNow = room.simNow + Math.max(0, dtMs);
+  const simNow = room.simNow + Math.max(0, dtMs) * (room.speed ?? DEFAULT_SPEED);
   const game = tick(room.game, simNow);
-  return { game, simNow, phase: game.status === 'playing' ? 'playing' : 'over' };
+  return { ...room, game, simNow, phase: game.status === 'playing' ? 'playing' : 'over' };
 }
 
 /**
@@ -48,5 +56,5 @@ export function applyIntent(
   if (room.phase !== 'playing') return room;
   const game = deployCard(room.game, side, handIndex, file, rank, room.simNow);
   if (game === room.game) return room;
-  return { game, simNow: room.simNow, phase: game.status === 'playing' ? 'playing' : 'over' };
+  return { ...room, game, phase: game.status === 'playing' ? 'playing' : 'over' };
 }

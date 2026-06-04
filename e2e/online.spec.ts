@@ -35,6 +35,17 @@ test('two browsers connect to one room and the game starts', async () => {
     await expect(pa.locator('.piece')).toHaveCount(2);
     await expect(pb.locator('.piece')).toHaveCount(2);
 
+    // Each player sees the board from their own side: their hand is at the bottom.
+    const handYs = async (page: typeof pa) => {
+      const w = await page.getByTestId('hand-white').boundingBox();
+      const b = await page.getByTestId('hand-black').boundingBox();
+      return { white: w!.y, black: b!.y };
+    };
+    const host = await handYs(pa); // White: white hand below black hand
+    expect(host.white).toBeGreaterThan(host.black);
+    const guest = await handYs(pb); // Black (flipped): black hand below white hand
+    expect(guest.black).toBeGreaterThan(guest.white);
+
     // Guest leaving ends the game for the host.
     await pb.getByTestId('leave').click();
     await expect(pa.getByTestId('online-overlay')).toBeVisible();

@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { GAME_TICK_MS } from '../src/game/constants';
+import { DEFAULT_SPEED, GAME_TICK_MS } from '../src/game/constants';
 import {
   advanceRoom,
   applyIntent,
@@ -61,7 +61,9 @@ export class GameRoom extends DurableObject<Env> {
     server.serializeAttachment({ role } satisfies Attachment);
 
     if (!this.room) {
-      this.room = createRoom(Date.now());
+      // The creator (first to connect) defines the game speed via ?speed=.
+      const sp = Number(url.searchParams.get('speed'));
+      this.room = createRoom(Date.now(), Number.isFinite(sp) && sp > 0 ? sp : DEFAULT_SPEED);
       await this.save();
     }
 
@@ -91,7 +93,7 @@ export class GameRoom extends DurableObject<Env> {
         this.broadcastState();
       }
     } else if (msg.t === 'rematch') {
-      this.room = startGame(Date.now());
+      this.room = startGame(Date.now(), this.room.speed);
       this.lastWall = 0;
       void this.save();
       this.broadcastState();
@@ -151,7 +153,7 @@ export class GameRoom extends DurableObject<Env> {
 
   private maybeStart(): void {
     if (this.room?.phase === 'waiting' && this.bothPlayersPresent()) {
-      this.room = startGame(Date.now());
+      this.room = startGame(Date.now(), this.room.speed);
       this.lastWall = 0;
       void this.save();
       this.broadcastState();

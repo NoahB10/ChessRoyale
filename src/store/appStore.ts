@@ -16,6 +16,8 @@ export interface OnlineSession {
   side: OnlineRole | null;
   status: ConnStatus;
   presence: { white: boolean; black: boolean };
+  /** speed chosen by the creator (only sent on the creating connection). */
+  speed?: number;
   error?: string;
 }
 
@@ -24,7 +26,7 @@ interface AppStore {
   mode: Mode;
   online: OnlineSession | null;
   startLocal: () => void;
-  startOnline: (code: string) => void;
+  startOnline: (code: string, speed?: number) => void;
   setOnline: (patch: Partial<OnlineSession>) => void;
   goMenu: () => void;
 }
@@ -52,7 +54,8 @@ export const useAppStore = create<AppStore>((set) => ({
 
   startLocal: () => set({ screen: 'game', mode: 'local', online: null }),
 
-  startOnline: (code) => set({ screen: 'game', mode: 'online', online: freshOnline(code) }),
+  startOnline: (code, speed) =>
+    set({ screen: 'game', mode: 'online', online: { ...freshOnline(code), speed } }),
 
   setOnline: (patch) => set((s) => (s.online ? { online: { ...s.online, ...patch } } : {})),
 

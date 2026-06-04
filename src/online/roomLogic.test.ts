@@ -63,7 +63,7 @@ describe('applyIntent (authoritative validation)', () => {
       ['pawn', 'rook'] as CardType[],
       5,
     );
-    return { game, phase: 'playing', simNow: 1000 };
+    return { game, phase: 'playing', simNow: 1000, speed: 1 };
   }
 
   it('applies a legal deploy in the player’s own zone', () => {
@@ -79,7 +79,7 @@ describe('applyIntent (authoritative validation)', () => {
 
   it('rejects an unaffordable deploy', () => {
     const game = gameWith([piece('king', 'white', 4, 0), piece('king', 'black', 4, 7)], ['rook'] as CardType[], 4);
-    const room: RoomState = { game, phase: 'playing', simNow: 1000 };
+    const room: RoomState = { game, phase: 'playing', simNow: 1000, speed: 1 };
     expect(applyIntent(room, 'white', 0, 1, 0)).toBe(room); // rook costs 5, only 4 energy
   });
 
@@ -94,7 +94,7 @@ describe('advanceRoom (authoritative simulation)', () => {
     const rook = piece('rook', 'white', 0, 0, 0); // a1, ready to act
     const blackKing = piece('king', 'black', 0, 1); // a2, on the rook’s file
     const game = gameWith([rook, blackKing, piece('king', 'white', 4, 0)]);
-    const room: RoomState = { game, phase: 'playing', simNow: 0 };
+    const room: RoomState = { game, phase: 'playing', simNow: 0, speed: 1 };
 
     const after = advanceRoom(room, 1000);
 

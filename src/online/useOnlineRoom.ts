@@ -17,10 +17,13 @@ export function useOnlineRoom(): void {
 
     const setOnline = useAppStore.getState().setOnline;
     const applyServerState = useGameStore.getState().applyServerState;
+    const speed = useAppStore.getState().online?.speed;
 
     setOnline({ status: 'connecting' });
 
-    connect(code, {
+    connect(
+      code,
+      {
       onMessage: (msg) => {
         switch (msg.t) {
           case 'assigned':
@@ -49,8 +52,10 @@ export function useOnlineRoom(): void {
           setOnline({ status: 'error', error: 'Disconnected from room' });
         }
       },
-      onError: () => setOnline({ status: 'error', error: 'Connection failed' }),
-    });
+        onError: () => setOnline({ status: 'error', error: 'Connection failed' }),
+      },
+      speed,
+    );
 
     return () => disconnect();
   }, [mode, code]);

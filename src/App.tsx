@@ -41,6 +41,7 @@ export default function App() {
 function Game() {
   const mode = useAppStore((s) => s.mode);
   const onlineStatus = useAppStore((s) => s.online?.status ?? null);
+  const onlineSide = useAppStore((s) => s.online?.side ?? null);
   const goMenu = useAppStore((s) => s.goMenu);
   const status = useGameStore((s) => s.state.status);
   const winner = useGameStore((s) => s.state.winner);
@@ -81,6 +82,11 @@ function Game() {
   }
 
   const online = mode === 'online';
+  // Online Black sees the board from their own side (flipped); their hand sits at
+  // the bottom. White and local play keep White at the bottom.
+  const flip = online && onlineSide === 'black';
+  const topPlayer: Player = flip ? 'white' : 'black';
+  const bottomPlayer: Player = flip ? 'black' : 'white';
   const gameOver = status !== 'playing';
   const showWaiting = online && (onlineStatus === 'connecting' || onlineStatus === 'waiting');
   const showDisconnect = online && (onlineStatus === 'opponent_left' || onlineStatus === 'error');
@@ -99,13 +105,13 @@ function Game() {
         </header>
 
         <div className="side-row">
-          <EnergyBar player="black" />
-          {!online && <ControllerBadge player="black" />}
+          <EnergyBar player={topPlayer} />
+          {!online && <ControllerBadge player={topPlayer} />}
         </div>
-        <Hand player="black" />
+        <Hand player={topPlayer} />
 
         <div className="board-wrap">
-          <Board />
+          <Board flip={flip} />
           {!online && <SpeedSlider />}
 
           {showWaiting && <WaitingOverlay />}
@@ -152,10 +158,10 @@ function Game() {
           )}
         </div>
 
-        <Hand player="white" />
+        <Hand player={bottomPlayer} />
         <div className="side-row">
-          <EnergyBar player="white" />
-          {!online && <ControllerBadge player="white" />}
+          <EnergyBar player={bottomPlayer} />
+          {!online && <ControllerBadge player={bottomPlayer} />}
         </div>
 
         <p className="hint">
