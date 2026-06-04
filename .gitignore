@@ -18,6 +18,11 @@ dist-ssr
 /playwright/.cache/
 /e2e/screenshots/
 
+# Cloudflare / Wrangler
+.wrangler/
+.dev.vars
+.dev.vars.*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
