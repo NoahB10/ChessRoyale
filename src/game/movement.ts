@@ -189,41 +189,39 @@ function clearBetween(pieces: Piece[], f0: number, r0: number, f1: number, r1: n
   return true;
 }
 
+/** Whether piece `p` attacks square (f,r), using full chess range for sliders. */
+function pieceAttacks(pieces: Piece[], p: Piece, f: number, r: number): boolean {
+  const df = f - p.file;
+  const dr = r - p.rank;
+  if (df === 0 && dr === 0) return false;
+  const adf = Math.abs(df);
+  const adr = Math.abs(dr);
+  switch (p.type) {
+    case 'pawn':
+      return dr === FORWARD[p.owner] && adf === 1;
+    case 'knight':
+      return (adf === 1 && adr === 2) || (adf === 2 && adr === 1);
+    case 'king':
+      return adf <= 1 && adr <= 1;
+    case 'rook':
+      return (df === 0 || dr === 0) && clearBetween(pieces, p.file, p.rank, f, r);
+    case 'bishop':
+      return adf === adr && clearBetween(pieces, p.file, p.rank, f, r);
+    case 'queen':
+      return (df === 0 || dr === 0 || adf === adr) && clearBetween(pieces, p.file, p.rank, f, r);
+  }
+}
+
 /**
- * Whether square (f,r) is attacked by any piece owned by `attacker`, using full
- * chess range (so the king flees squares a rook/bishop/queen could capture into).
- * Pawns attack their two forward diagonals; the king attacks adjacent squares.
+ * Whether square (f,r) is attacked by any piece owned by `attacker` (full range,
+ * so the king flees squares a rook/bishop/queen could capture into; pawns attack
+ * their two forward diagonals; the king attacks adjacent squares).
  */
 export function isSquareAttacked(pieces: Piece[], f: number, r: number, attacker: Player): boolean {
-  for (const p of pieces) {
-    if (p.owner !== attacker) continue;
-    const df = f - p.file;
-    const dr = r - p.rank;
-    if (df === 0 && dr === 0) continue;
-    const adf = Math.abs(df);
-    const adr = Math.abs(dr);
-    switch (p.type) {
-      case 'pawn':
-        if (dr === FORWARD[p.owner] && adf === 1) return true;
-        break;
-      case 'knight':
-        if ((adf === 1 && adr === 2) || (adf === 2 && adr === 1)) return true;
-        break;
-      case 'king':
-        if (adf <= 1 && adr <= 1) return true;
-        break;
-      case 'rook':
-        if ((df === 0 || dr === 0) && clearBetween(pieces, p.file, p.rank, f, r)) return true;
-        break;
-      case 'bishop':
-        if (adf === adr && clearBetween(pieces, p.file, p.rank, f, r)) return true;
-        break;
-      case 'queen':
-        if ((df === 0 || dr === 0 || adf === adr) && clearBetween(pieces, p.file, p.rank, f, r)) {
-          return true;
-        }
-        break;
-    }
-  }
-  return false;
+  return pieces.some((p) => p.owner === attacker && pieceAttacks(pieces, p, f, r));
+}
+
+/** Every piece owned by `owner` that attacks square (f,r). */
+export function attackersOf(pieces: Piece[], f: number, r: number, owner: Player): Piece[] {
+  return pieces.filter((p) => p.owner === owner && pieceAttacks(pieces, p, f, r));
 }

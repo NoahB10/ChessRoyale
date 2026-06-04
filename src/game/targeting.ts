@@ -1,38 +1,10 @@
-import type { Move, Piece, Player, Position } from './types';
+import type { Move, Piece, Player } from './types';
 import { PIECE_VALUE } from './constants';
 import { dist2, isSquareAttacked, kingMoves, legalMoves, stepMoves } from './movement';
+import { scoreMove, threatLoss } from './evaluation';
 
 function enemyKing(pieces: Piece[], owner: Player): Piece | undefined {
   return pieces.find((p) => p.type === 'king' && p.owner !== owner);
-}
-
-function nearestEnemy(pieces: Piece[], piece: Piece): Piece | undefined {
-  let best: Piece | undefined;
-  let bestD = Infinity;
-  for (const e of pieces) {
-    if (e.owner === piece.owner) continue;
-    const d = dist2(piece, e);
-    if (d < bestD) {
-      bestD = d;
-      best = e;
-    }
-  }
-  return best;
-}
-
-/** Pick the one-step move that most reduces distance to target; must strictly reduce. */
-function bestStepToward(steps: Move[], piece: Piece, target: Position): Move | null {
-  const current = dist2(piece, target);
-  let best: Move | null = null;
-  let bestD = current;
-  for (const s of steps) {
-    const d = dist2(s.to, target);
-    if (d < bestD) {
-      bestD = d;
-      best = s;
-    }
-  }
-  return best;
 }
 
 /** Highest-value capture among a set of capture moves. */
@@ -100,43 +72,36 @@ function kingAction(pieces: Piece[], king: Piece): Move | null {
 }
 
 /**
- * Decide a single action for a piece each action tick:
- *  1. capture the enemy king if legally possible
- *  2. else capture the highest-value reachable enemy piece
- *  3. else step one square toward the enemy king (reducing distance)
- *  4. else step one square toward the nearest enemy piece
- * Returns null if the piece should stay put.
+ * Decide a single action for a piece each action tick. The king plays defence
+ * (see kingAction). Every other piece plays the move a strong engine would: it
+ * always takes a winning capture of the enemy king, otherwise it scores every
+ * candidate (full-range captures + one-square quiet steps) by static exchange
+ * evaluation plus a small positional term and plays the best — which is never
+ * worse than holding. This means it does not hang itself, only makes favourable
+ * trades, and advances safely toward the enemy king. Returns null to hold.
  */
 export function decideAction(pieces: Piece[], piece: Piece): Move | null {
   if (piece.type === 'king') return kingAction(pieces, piece);
 
-  const moves = legalMoves(pieces, piece);
-  const captures = moves.filter((m) => m.capture);
   const ek = enemyKing(pieces, piece.owner);
+  const captures = legalMoves(pieces, piece).filter((m) => m.capture);
 
-  // 1. capture enemy king
-  if (ek) {
-    const kingCapture = captures.find((c) => c.to.file === ek.file && c.to.rank === ek.rank);
-    if (kingCapture) return kingCapture;
+  // A winning capture of the enemy king is always taken.
+  const kingCapture = captures.find((c) => {
+    const t = pieces.find((p) => p.id === c.capturedId);
+    return t?.type === 'king';
+  });
+  if (kingCapture) return kingCapture;
+
+  const candidates = [...captures, ...stepMoves(pieces, piece)];
+  let best: Move | null = null;
+  let bestScore = -threatLoss(pieces, piece); // the value of staying put
+  for (const m of candidates) {
+    const score = scoreMove(pieces, piece, m, ek);
+    if (score > bestScore) {
+      bestScore = score;
+      best = m;
+    }
   }
-
-  // 2. capture highest-value enemy piece
-  if (captures.length > 0) return bestCapture(pieces, captures);
-
-  const steps = stepMoves(pieces, piece);
-
-  // 3. step toward enemy king
-  if (ek) {
-    const toward = bestStepToward(steps, piece, ek);
-    if (toward) return toward;
-  }
-
-  // 4. step toward nearest enemy piece
-  const near = nearestEnemy(pieces, piece);
-  if (near) {
-    const toward = bestStepToward(steps, piece, near);
-    if (toward) return toward;
-  }
-
-  return null;
+  return best;
 }
