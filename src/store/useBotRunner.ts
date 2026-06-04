@@ -23,7 +23,7 @@ export function useBotRunner(): void {
       getState: () => useGameStore.getState().state,
       getController: (p) => useGameStore.getState().controllers[p],
       isPaused: () => useGameStore.getState().paused,
-      deploy: (p, d) => useGameStore.getState().deploy(p, d.handIndex, d.file, d.rank, Date.now()),
+      deploy: (p, d) => useGameStore.getState().deploy(p, d.handIndex, d.file, d.rank),
       rng,
     };
 

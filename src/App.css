@@ -291,6 +291,46 @@
     0 2px 3px rgba(0, 0, 0, 0.5);
 }
 
+/* ---------- speed slider ---------- */
+.speed-slider {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  bottom: 0;
+  margin-left: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 62px;
+}
+.speed-caption {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.speed-range {
+  writing-mode: vertical-lr;
+  direction: rtl; /* puts the high (fast) end at the top */
+  width: 8px;
+  height: 220px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.speed-value {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px 8px;
+}
+
 /* ---------- overlay ---------- */
 .overlay {
   position: absolute;

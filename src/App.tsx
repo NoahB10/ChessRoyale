@@ -13,6 +13,7 @@ import { Board } from './components/Board';
 import { Hand } from './components/Hand';
 import { EnergyBar } from './components/EnergyBar';
 import { Controls, ControllerBadge } from './components/Controls';
+import { SpeedSlider } from './components/SpeedSlider';
 import { GAME_TICK_MS } from './game/constants';
 import type { Player } from './game/types';
 import './App.css';
@@ -33,9 +34,10 @@ export default function App() {
   const setActiveDrag = useGameStore((s) => s.setActiveDrag);
   const reset = useGameStore((s) => s.reset);
 
-  // real-time game loop (respects pause inside the store's tick action)
+  // real-time game loop; `advance` scales wall-clock by the speed multiplier
+  // and respects pause inside the store.
   useEffect(() => {
-    const id = setInterval(() => useGameStore.getState().tick(Date.now()), GAME_TICK_MS);
+    const id = setInterval(() => useGameStore.getState().advance(Date.now()), GAME_TICK_MS);
     return () => clearInterval(id);
   }, []);
 
@@ -56,7 +58,7 @@ export default function App() {
     const data = e.active.data.current as CardDragData | undefined;
     const over = e.over?.data.current as SquareDropData | undefined;
     if (data && over && useGameStore.getState().controllers[data.player].kind === 'human') {
-      deploy(data.player, data.handIndex, over.file, over.rank, Date.now());
+      deploy(data.player, data.handIndex, over.file, over.rank);
     }
     setActiveDrag(null);
   }
@@ -82,6 +84,7 @@ export default function App() {
 
         <div className="board-wrap">
           <Board />
+          <SpeedSlider />
           {status !== 'playing' && (
             <div className="overlay" data-testid="winner-overlay">
               <div className="overlay-card">

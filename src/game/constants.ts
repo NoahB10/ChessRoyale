@@ -13,6 +13,16 @@ export const GAME_TICK_MS = 250;
 /** minimum time between a single piece's actions. */
 export const PIECE_COOLDOWN_MS = 900;
 
+/**
+ * Game-speed multiplier bounds for the speed slider. The virtual simulation
+ * clock advances at `realElapsed * speed`, so 0.5× is half speed, 1× is normal.
+ * Bots keep reacting on wall-clock time; only the board's clock is scaled.
+ */
+export const MIN_SPEED = 0.1;
+export const MAX_SPEED = 1.5;
+export const DEFAULT_SPEED = 0.6;
+export const SPEED_STEP = 0.05;
+
 /** Energy cost to deploy a card (standard chess values). */
 export const PIECE_COST: Record<CardType, number> = {
   pawn: 1,
