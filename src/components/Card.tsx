@@ -8,16 +8,19 @@ interface Props {
   handIndex: number;
   card: CardType;
   energy: number;
+  /** when false, this side is bot-controlled and its cards are not draggable */
+  humanControlled?: boolean;
 }
 
-export function Card({ player, handIndex, card, energy }: Props) {
+export function Card({ player, handIndex, card, energy, humanControlled = true }: Props) {
   const cost = PIECE_COST[card];
   const affordable = energy >= cost;
+  const draggable = affordable && humanControlled;
 
   const { setNodeRef, listeners, attributes, isDragging, transform } = useDraggable({
     id: `card-${player}-${handIndex}`,
     data: { player, handIndex, type: card, cost },
-    disabled: !affordable,
+    disabled: !draggable,
   });
 
   const style = transform
@@ -28,7 +31,7 @@ export function Card({ player, handIndex, card, energy }: Props) {
     <div
       ref={setNodeRef}
       style={style}
-      className={clsx('card', player, { dragging: isDragging, disabled: !affordable })}
+      className={clsx('card', player, { dragging: isDragging, disabled: !draggable })}
       data-testid="card"
       data-card={card}
       {...listeners}
