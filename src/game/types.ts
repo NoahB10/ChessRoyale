@@ -26,6 +26,8 @@ export interface PlayerState {
   energy: number; // 0..ENERGY_MAX (kept as a float, regenerates over time)
   deck: CardType[]; // remaining shuffled cards
   hand: CardType[]; // up to HAND_SIZE cards currently held
+  /** sim time when this player may deploy again (deploy cooldown). */
+  deployReadyAt: number;
 }
 
 export interface GameState {

@@ -53,6 +53,10 @@ export function sendDeploy(handIndex: number, file: number, rank: number): void 
   send({ t: 'deploy', handIndex, file, rank });
 }
 
+export function sendCycle(): void {
+  send({ t: 'cycle' });
+}
+
 export function sendRematch(): void {
   send({ t: 'rematch' });
 }

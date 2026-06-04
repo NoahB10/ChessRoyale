@@ -23,6 +23,13 @@ export const MAX_SPEED = 1.5;
 export const DEFAULT_SPEED = 0.6;
 export const SPEED_STEP = 0.05;
 
+/** Deploy cooldown after placing a piece = its cost * this (ms of sim time). */
+export const DEPLOY_COOLDOWN_MS_PER_COST = 500;
+/** When the opponent deploys, your remaining deploy cooldown is scaled by this. */
+export const OPPONENT_DEPLOY_COOLDOWN_FACTOR = 0.5;
+/** Energy cost to cycle your hand for fresh cards. */
+export const DECK_CYCLE_COST = 2;
+
 /** Energy cost to deploy a card (standard chess values). */
 export const PIECE_COST: Record<CardType, number> = {
   pawn: 1,

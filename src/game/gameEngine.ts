@@ -1,6 +1,8 @@
 import type { CardType, GameState, Piece, Player, PlayerState } from './types';
 import {
   BOARD_SIZE,
+  DECK_CYCLE_COST,
+  DEPLOY_COOLDOWN_MS_PER_COST,
   DEPLOY_RANKS,
   ENERGY_MAX,
   ENERGY_REGEN_MS,
@@ -8,6 +10,7 @@ import {
   GAME_TICK_MS,
   HAND_SIZE,
   KING_START,
+  OPPONENT_DEPLOY_COOLDOWN_FACTOR,
   PIECE_COOLDOWN_MS,
   PIECE_COST,
 } from './constants';
@@ -31,7 +34,7 @@ function newPlayerState(): PlayerState {
   const deck = shuffle(createDeck());
   const hand: CardType[] = [];
   drawHand(deck, hand);
-  return { energy: ENERGY_START, deck, hand };
+  return { energy: ENERGY_START, deck, hand, deployReadyAt: 0 };
 }
 
 export function createInitialState(now: number): GameState {
@@ -67,7 +70,7 @@ export function resetGame(now: number): GameState {
 }
 
 function clonePlayer(p: PlayerState): PlayerState {
-  return { energy: p.energy, deck: [...p.deck], hand: [...p.hand] };
+  return { energy: p.energy, deck: [...p.deck], hand: [...p.hand], deployReadyAt: p.deployReadyAt };
 }
 
 function cloneState(s: GameState): GameState {
@@ -98,7 +101,17 @@ export function canDeploy(
   return true;
 }
 
-/** Deploy a card to a square. Returns the same reference unchanged if illegal. */
+/** Whether `player`'s deploy cooldown has elapsed at time `now`. */
+export function deployReady(state: GameState, player: Player, now: number): boolean {
+  return now >= state.players[player].deployReadyAt;
+}
+
+/**
+ * Deploy a card to a square. Returns the same reference unchanged if illegal or
+ * if the player is still on deploy cooldown. Deploying starts a cooldown
+ * proportional to the piece's cost, and shortens the opponent's remaining
+ * cooldown (the back-and-forth that distinguishes this from flat mana).
+ */
 export function deployCard(
   state: GameState,
   player: Player,
@@ -108,6 +121,7 @@ export function deployCard(
   now: number,
 ): GameState {
   if (!canDeploy(state, player, handIndex, file, rank)) return state;
+  if (now < state.players[player].deployReadyAt) return state; // still on cooldown
   const s = cloneState(state);
   const ps = s.players[player];
   const card = ps.hand[handIndex];
@@ -121,6 +135,33 @@ export function deployCard(
     rank,
     nextActionAt: now + PIECE_COOLDOWN_MS,
   });
+  drawHand(ps.deck, ps.hand);
+
+  // deploy cooldown scales with the piece's cost (intensity)
+  ps.deployReadyAt = now + PIECE_COST[card] * DEPLOY_COOLDOWN_MS_PER_COST;
+  // deploying shortens the opponent's remaining cooldown
+  const opponent = s.players[player === 'white' ? 'black' : 'white'];
+  if (opponent.deployReadyAt > now) {
+    opponent.deployReadyAt = now + (opponent.deployReadyAt - now) * OPPONENT_DEPLOY_COOLDOWN_FACTOR;
+  }
+  return s;
+}
+
+/**
+ * Spend energy to put the current hand back into the deck, reshuffle, and draw a
+ * fresh hand. Returns the same reference unchanged if it cannot be afforded or
+ * the game is over.
+ */
+export function cycleHand(state: GameState, player: Player): GameState {
+  if (state.status !== 'playing') return state;
+  const current = state.players[player];
+  if (current.energy < DECK_CYCLE_COST || current.hand.length === 0) return state;
+  const s = cloneState(state);
+  const ps = s.players[player];
+  ps.energy -= DECK_CYCLE_COST;
+  ps.deck.push(...ps.hand);
+  ps.hand = [];
+  ps.deck = shuffle(ps.deck);
   drawHand(ps.deck, ps.hand);
   return s;
 }

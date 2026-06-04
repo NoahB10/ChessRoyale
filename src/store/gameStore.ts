@@ -1,7 +1,14 @@
 import { create } from 'zustand';
 import type { GameState, Player } from '../game/types';
 import type { ControllerConfig } from '../game/bot/types';
-import { createInitialState, deployCard, tick } from '../game/gameEngine';
+import {
+  canDeploy,
+  createInitialState,
+  cycleHand,
+  deployCard,
+  deployReady,
+  tick,
+} from '../game/gameEngine';
 import { DEFAULT_SPEED, MAX_SPEED, MIN_SPEED } from '../game/constants';
 
 export interface ActiveDrag {
@@ -9,15 +16,23 @@ export interface ActiveDrag {
   handIndex: number;
 }
 
-const HUMAN: ControllerConfig = { kind: 'human' };
+/** A placement waiting for the player's deploy cooldown to clear (held ghost). */
+export interface PendingPlace {
+  handIndex: number;
+  file: number;
+  rank: number;
+}
 
+export type PendingMap = Record<Player, PendingPlace | null>;
+
+const HUMAN: ControllerConfig = { kind: 'human' };
 const SPEED_KEY = 'chessRoyale.speed';
+const NO_PENDING: PendingMap = { white: null, black: null };
 
 function clampSpeed(s: number): number {
   if (!Number.isFinite(s)) return DEFAULT_SPEED;
   return Math.min(MAX_SPEED, Math.max(MIN_SPEED, s));
 }
-
 function loadSpeed(): number {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(SPEED_KEY) : null;
@@ -26,38 +41,62 @@ function loadSpeed(): number {
     return DEFAULT_SPEED;
   }
 }
-
 function saveSpeed(s: number): void {
   try {
     if (typeof localStorage !== 'undefined') localStorage.setItem(SPEED_KEY, String(s));
   } catch {
-    /* storage unavailable (private mode / SSR) — speed simply won't persist */
+    /* storage unavailable */
   }
+}
+
+/** Commit any held placements whose deploy cooldown has cleared; drop ones that
+ *  are no longer legal (square taken, etc.). Pure — used by the local loop. */
+function commitPending(
+  state: GameState,
+  pending: PendingMap,
+  now: number,
+): { state: GameState; pending: PendingMap } {
+  let s = state;
+  let next = pending;
+  for (const player of ['white', 'black'] as Player[]) {
+    const p = next[player];
+    if (!p) continue;
+    if (!canDeploy(s, player, p.handIndex, p.file, p.rank)) {
+      next = { ...next, [player]: null };
+      continue;
+    }
+    if (deployReady(s, player, now)) {
+      const after = deployCard(s, player, p.handIndex, p.file, p.rank, now);
+      if (after !== s) {
+        s = after;
+        next = { ...next, [player]: null };
+      }
+    }
+  }
+  return { state: s, pending: next };
 }
 
 interface GameStore {
   state: GameState;
   activeDrag: ActiveDrag | null;
-  /** who controls each side */
+  /** placements held until their deploy cooldown clears. */
+  pending: PendingMap;
   controllers: Record<Player, ControllerConfig>;
-  /** when true, the simulation and bots are frozen */
   paused: boolean;
-  /** increments on each restart; lets the bot runner reset its reaction timers */
   gameSeq: number;
-  /** game-speed multiplier; the virtual clock advances at realElapsed * speed */
   speed: number;
-  /** current virtual simulation time (ms); the board's clock, scaled by speed */
   simNow: number;
-  /** real wall-clock time (ms) at the last `advance` — anchors the virtual clock */
   realAt: number;
-  /** advance the simulation to a virtual time `now` (ms). */
   tick: (now: number) => void;
-  /** advance the virtual clock by (realNow - realAt) * speed, then tick. */
   advance: (realNow: number) => void;
-  /** attempt to deploy a hand card; returns true if it succeeded. */
+  /** deploy immediately if off cooldown; returns true if it placed a piece. */
   deploy: (player: Player, handIndex: number, file: number, rank: number) => boolean;
-  /** replace the board with authoritative state from the server (online mode). */
-  applyServerState: (game: GameState) => void;
+  /** hold a placement (ghost) until the cooldown clears. */
+  setPending: (player: Player, place: PendingPlace | null) => void;
+  /** spend energy to draw a fresh hand (local). */
+  cycle: (player: Player) => void;
+  /** replace board + held placements with authoritative server state (online). */
+  applyServerState: (game: GameState, pending?: PendingMap) => void;
   setActiveDrag: (drag: ActiveDrag | null) => void;
   setController: (player: Player, config: ControllerConfig) => void;
   setPaused: (paused: boolean) => void;
@@ -71,6 +110,7 @@ export const useGameStore = create<GameStore>((set, get) => {
   return {
     state: createInitialState(now0),
     activeDrag: null,
+    pending: NO_PENDING,
     controllers: { white: HUMAN, black: HUMAN },
     paused: false,
     gameSeq: 0,
@@ -80,24 +120,22 @@ export const useGameStore = create<GameStore>((set, get) => {
 
     tick: (now) =>
       set((s) => {
-        // While paused, freeze the world but keep the clock current so resuming
-        // does not replay the elapsed time in one burst.
         if (s.paused) return { state: { ...s.state, lastTickAt: now } };
         return { state: tick(s.state, now) };
       }),
 
-    // Driven by the render loop. Real elapsed time is scaled by `speed` into the
-    // virtual clock, so the whole board slows down or speeds up uniformly.
     advance: (realNow) =>
       set((s) => {
         const dtReal = realNow > s.realAt ? realNow - s.realAt : 0;
         const simNow = s.simNow + dtReal * s.speed;
-        const state = s.paused ? { ...s.state, lastTickAt: simNow } : tick(s.state, simNow);
-        return { simNow, realAt: realNow, state };
+        if (s.paused) {
+          return { simNow, realAt: realNow, state: { ...s.state, lastTickAt: simNow } };
+        }
+        const ticked = tick(s.state, simNow);
+        const committed = commitPending(ticked, s.pending, simNow);
+        return { simNow, realAt: realNow, state: committed.state, pending: committed.pending };
       }),
 
-    // Pieces are stamped with the current virtual time so their cooldowns line up
-    // with the scaled clock — that is what makes deployed pieces obey the speed.
     deploy: (player, handIndex, file, rank) => {
       const before = get().state;
       const after = deployCard(before, player, handIndex, file, rank, get().simNow);
@@ -106,7 +144,11 @@ export const useGameStore = create<GameStore>((set, get) => {
       return true;
     },
 
-    applyServerState: (game) => set({ state: game }),
+    setPending: (player, place) => set((s) => ({ pending: { ...s.pending, [player]: place } })),
+
+    cycle: (player) => set((s) => ({ state: cycleHand(s.state, player) })),
+
+    applyServerState: (game, pending) => set({ state: game, pending: pending ?? NO_PENDING }),
 
     setActiveDrag: (drag) => set({ activeDrag: drag }),
 
@@ -122,13 +164,13 @@ export const useGameStore = create<GameStore>((set, get) => {
       set({ speed: next });
     },
 
-    // Restart the board but keep the chosen game mode and speed, and resume play.
     reset: () =>
       set((s) => {
         const t = Date.now();
         return {
           state: createInitialState(t),
           activeDrag: null,
+          pending: NO_PENDING,
           paused: false,
           gameSeq: s.gameSeq + 1,
           simNow: t,

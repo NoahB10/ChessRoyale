@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { advanceRoom, applyIntent, createRoom, startGame, type RoomState } from './roomLogic';
+import {
+  advanceRoom,
+  applyIntent,
+  createRoom,
+  queueIntent,
+  startGame,
+  type RoomState,
+} from './roomLogic';
 import { makeRoomCode, parseRoomCode } from './protocol';
 import type { CardType, GameState, Piece, PieceType, Player } from '../game/types';
 
@@ -11,8 +18,8 @@ function gameWith(pieces: Piece[], whiteHand: CardType[] = [], whiteEnergy = 5):
   return {
     pieces,
     players: {
-      white: { energy: whiteEnergy, deck: [], hand: whiteHand },
-      black: { energy: 5, deck: [], hand: [] },
+      white: { energy: whiteEnergy, deck: [], hand: whiteHand, deployReadyAt: 0 },
+      black: { energy: 5, deck: [], hand: [], deployReadyAt: 0 },
     },
     status: 'playing',
     winner: null,
@@ -63,7 +70,7 @@ describe('applyIntent (authoritative validation)', () => {
       ['pawn', 'rook'] as CardType[],
       5,
     );
-    return { game, phase: 'playing', simNow: 1000, speed: 1 };
+    return { game, phase: 'playing', simNow: 1000, speed: 1, pending: { white: null, black: null } };
   }
 
   it('applies a legal deploy in the player’s own zone', () => {
@@ -79,7 +86,13 @@ describe('applyIntent (authoritative validation)', () => {
 
   it('rejects an unaffordable deploy', () => {
     const game = gameWith([piece('king', 'white', 4, 0), piece('king', 'black', 4, 7)], ['rook'] as CardType[], 4);
-    const room: RoomState = { game, phase: 'playing', simNow: 1000, speed: 1 };
+    const room: RoomState = {
+      game,
+      phase: 'playing',
+      simNow: 1000,
+      speed: 1,
+      pending: { white: null, black: null },
+    };
     expect(applyIntent(room, 'white', 0, 1, 0)).toBe(room); // rook costs 5, only 4 energy
   });
 
@@ -89,12 +102,50 @@ describe('applyIntent (authoritative validation)', () => {
   });
 });
 
+describe('queueIntent (deploy cooldown + held placements)', () => {
+  function room(): RoomState {
+    const game = gameWith(
+      [piece('king', 'white', 4, 0), piece('king', 'black', 4, 7)],
+      ['pawn', 'pawn'] as CardType[],
+      10,
+    );
+    return { game, phase: 'playing', simNow: 1000, speed: 1, pending: { white: null, black: null } };
+  }
+
+  it('applies a deploy immediately when off cooldown', () => {
+    const after = queueIntent(room(), 'white', 0, 3, 1); // d2
+    expect(after.game.pieces.some((p) => p.file === 3 && p.rank === 1 && p.owner === 'white')).toBe(
+      true,
+    );
+    expect(after.pending.white).toBeNull();
+  });
+
+  it('holds a deploy made during cooldown, then commits it once it clears', () => {
+    const r1 = queueIntent(room(), 'white', 0, 3, 1); // first pawn -> cooldown until 1500
+    const r2 = queueIntent(r1, 'white', 0, 4, 1); // second pawn while on cooldown -> held
+    expect(r2.pending.white).toEqual({ handIndex: 0, file: 4, rank: 1 });
+    expect(r2.game.pieces.some((p) => p.file === 4 && p.rank === 1)).toBe(false);
+
+    const r3 = advanceRoom(r2, 600); // simNow 1000 -> 1600, past the 1500 cooldown
+    expect(r3.pending.white).toBeNull();
+    expect(r3.game.pieces.some((p) => p.file === 4 && p.rank === 1 && p.owner === 'white')).toBe(
+      true,
+    );
+  });
+});
+
 describe('advanceRoom (authoritative simulation)', () => {
   it('ends the room when a king is captured', () => {
     const rook = piece('rook', 'white', 0, 0, 0); // a1, ready to act
     const blackKing = piece('king', 'black', 0, 1); // a2, on the rook’s file
     const game = gameWith([rook, blackKing, piece('king', 'white', 4, 0)]);
-    const room: RoomState = { game, phase: 'playing', simNow: 0, speed: 1 };
+    const room: RoomState = {
+      game,
+      phase: 'playing',
+      simNow: 0,
+      speed: 1,
+      pending: { white: null, black: null },
+    };
 
     const after = advanceRoom(room, 1000);
 

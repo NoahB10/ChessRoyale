@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import clsx from 'clsx';
 import {
   DndContext,
   PointerSensor,
@@ -10,9 +11,9 @@ import {
 import { useGameStore } from './store/gameStore';
 import { useAppStore } from './store/appStore';
 import { useBotRunner } from './store/useBotRunner';
-import { isControllable } from './store/useControllable';
+import { isControllable, useControllable } from './store/useControllable';
 import { useOnlineRoom } from './online/useOnlineRoom';
-import { sendDeploy, sendRematch } from './online/connection';
+import { sendCycle, sendDeploy, sendRematch } from './online/connection';
 import { Board } from './components/Board';
 import { Hand } from './components/Hand';
 import { EnergyBar } from './components/EnergyBar';
@@ -20,7 +21,8 @@ import { Controls, ControllerBadge } from './components/Controls';
 import { OnlineBar } from './components/OnlineBar';
 import { SpeedSlider } from './components/SpeedSlider';
 import { Menu } from './components/Menu';
-import { GAME_TICK_MS } from './game/constants';
+import { canDeploy, deployReady } from './game/gameEngine';
+import { DECK_CYCLE_COST, GAME_TICK_MS } from './game/constants';
 import type { Player } from './game/types';
 import './App.css';
 
@@ -72,10 +74,19 @@ function Game() {
     const data = e.active.data.current as CardDragData | undefined;
     const over = e.over?.data.current as SquareDropData | undefined;
     if (data && over && isControllable(data.player)) {
-      if (useAppStore.getState().mode === 'online') {
-        sendDeploy(data.handIndex, over.file, over.rank);
-      } else {
-        deploy(data.player, data.handIndex, over.file, over.rank);
+      const st = useGameStore.getState();
+      if (canDeploy(st.state, data.player, data.handIndex, over.file, over.rank)) {
+        const place = { handIndex: data.handIndex, file: over.file, rank: over.rank };
+        if (useAppStore.getState().mode === 'online') {
+          // server decides timing; show an optimistic ghost until it confirms
+          sendDeploy(data.handIndex, over.file, over.rank);
+          st.setPending(data.player, place);
+        } else if (deployReady(st.state, data.player, st.state.lastTickAt)) {
+          deploy(data.player, data.handIndex, over.file, over.rank);
+        } else {
+          // on cooldown: hold the card on the square until the cooldown clears
+          st.setPending(data.player, place);
+        }
       }
     }
     setActiveDrag(null);
@@ -106,6 +117,7 @@ function Game() {
 
         <div className="side-row">
           <EnergyBar player={topPlayer} />
+          <DeployControls player={topPlayer} />
           {!online && <ControllerBadge player={topPlayer} />}
         </div>
         <Hand player={topPlayer} />
@@ -161,6 +173,7 @@ function Game() {
         <Hand player={bottomPlayer} />
         <div className="side-row">
           <EnergyBar player={bottomPlayer} />
+          <DeployControls player={bottomPlayer} />
           {!online && <ControllerBadge player={bottomPlayer} />}
         </div>
 
@@ -170,6 +183,43 @@ function Game() {
         </p>
       </div>
     </DndContext>
+  );
+}
+
+function DeployControls({ player }: { player: Player }) {
+  const deployReadyAt = useGameStore((s) => s.state.players[player].deployReadyAt);
+  const now = useGameStore((s) => s.state.lastTickAt);
+  const energy = useGameStore((s) => s.state.players[player].energy);
+  const cycle = useGameStore((s) => s.cycle);
+  const controllable = useControllable(player);
+  const remaining = Math.max(0, deployReadyAt - now);
+
+  function onCycle() {
+    if (useAppStore.getState().mode === 'online') sendCycle();
+    else cycle(player);
+  }
+
+  return (
+    <div className="deploy-controls">
+      <span
+        className={clsx('deploy-cd', { ready: remaining <= 0 })}
+        data-testid={`deploy-cd-${player}`}
+        title="Deploy cooldown"
+      >
+        {remaining > 0 ? `${(remaining / 1000).toFixed(1)}s` : 'Ready'}
+      </span>
+      {controllable && (
+        <button
+          className="btn cycle"
+          data-testid={`cycle-${player}`}
+          onClick={onCycle}
+          disabled={energy < DECK_CYCLE_COST}
+          title={`Draw a fresh hand (costs ${DECK_CYCLE_COST} energy)`}
+        >
+          ↻ New cards
+        </button>
+      )}
+    </div>
   );
 }
 

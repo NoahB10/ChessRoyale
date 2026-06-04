@@ -4,6 +4,13 @@ import type { GameState, Player } from '../game/types';
 export type OnlineRole = Player | 'spectator';
 export type RoomPhase = 'waiting' | 'playing' | 'over';
 
+export interface PendingPlace {
+  handIndex: number;
+  file: number;
+  rank: number;
+}
+export type PendingState = Record<Player, PendingPlace | null>;
+
 // ---- client -> server ----
 export interface DeployIntent {
   t: 'deploy';
@@ -11,10 +18,13 @@ export interface DeployIntent {
   file: number;
   rank: number;
 }
+export interface CycleMsg {
+  t: 'cycle';
+}
 export interface RematchMsg {
   t: 'rematch';
 }
-export type ClientMsg = DeployIntent | RematchMsg;
+export type ClientMsg = DeployIntent | CycleMsg | RematchMsg;
 
 // ---- server -> client ----
 export interface AssignedMsg {
@@ -32,6 +42,8 @@ export interface StateMsg {
   t: 'state';
   game: GameState;
   phase: RoomPhase;
+  /** placements each side is holding until their deploy cooldown clears. */
+  pending: PendingState;
 }
 export interface OpponentLeftMsg {
   t: 'opponent_left';

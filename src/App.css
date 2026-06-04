@@ -532,3 +532,49 @@
   outline: none;
   border-color: var(--accent-2);
 }
+
+/* ---------- held card ghost ---------- */
+.piece.ghost {
+  opacity: 0.4;
+  animation: ghostPulse 1.1s ease-in-out infinite;
+}
+.square.has-ghost::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 8px;
+  border: 2px dashed var(--accent);
+  pointer-events: none;
+}
+@keyframes ghostPulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* ---------- deploy cooldown + cycle ---------- */
+.deploy-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.deploy-cd {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffd76a;
+  font-variant-numeric: tabular-nums;
+  min-width: 54px;
+  text-align: right;
+}
+.deploy-cd.ready {
+  color: var(--accent);
+}
+.btn.cycle {
+  padding: 5px 10px;
+  font-size: 12px;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canDeploy, tick } from './gameEngine';
+import { canDeploy, cycleHand, deployCard, deployReady, tick } from './gameEngine';
 import type { CardType, GameState, Piece, PieceType, Player, PlayerState } from './types';
 
 let seq = 0;
@@ -14,7 +14,7 @@ function piece(
 }
 
 function player(overrides: Partial<PlayerState> = {}): PlayerState {
-  return { energy: 5, deck: [], hand: [], ...overrides };
+  return { energy: 5, deck: [], hand: [], deployReadyAt: 0, ...overrides };
 }
 
 function state(pieces: Piece[], overrides: Partial<GameState> = {}): GameState {
@@ -114,6 +114,66 @@ describe('king capture ends the game', () => {
     expect(after.status).toBe('white_wins');
     expect(after.winner).toBe('white');
     expect(after.pieces.find((p) => p.id === blackKing.id)).toBeUndefined();
+  });
+});
+
+describe('deploy cooldown', () => {
+  const base = (whiteHand: CardType[]) =>
+    state([piece('king', 'white', 4, 0), piece('king', 'black', 4, 7)], {
+      players: {
+        white: player({ energy: 10, hand: whiteHand }),
+        black: player({ energy: 10, hand: ['pawn'] as CardType[] }),
+      },
+    });
+
+  it('starts a cost-proportional cooldown that blocks an immediate second deploy', () => {
+    const now = 1000;
+    const s1 = deployCard(base(['rook', 'pawn'] as CardType[]), 'white', 0, 1, 0, now); // rook (cost 5)
+    expect(s1.players.white.deployReadyAt).toBe(now + 5 * 500);
+    expect(deployReady(s1, 'white', now)).toBe(false);
+
+    // a second deploy during cooldown is rejected
+    expect(deployCard(s1, 'white', 0, 2, 0, now)).toBe(s1);
+
+    // once the cooldown elapses it works again
+    const later = now + 5 * 500;
+    expect(deployReady(s1, 'white', later)).toBe(true);
+    expect(deployCard(s1, 'white', 0, 2, 0, later)).not.toBe(s1);
+  });
+
+  it('the opponent deploying halves your remaining cooldown', () => {
+    const now = 1000;
+    const s1 = deployCard(base(['rook'] as CardType[]), 'white', 0, 1, 0, now); // white cooldown -> 3500
+    const t = now + 500;
+    const remaining = s1.players.white.deployReadyAt - t; // 2000
+    const s2 = deployCard(s1, 'black', 0, 0, 7, t); // black deploys at a8
+    expect(s2.players.white.deployReadyAt - t).toBeCloseTo(remaining * 0.5); // 1000
+  });
+});
+
+describe('cycleHand', () => {
+  it('swaps the whole hand for fresh cards and costs energy', () => {
+    const s0 = state([piece('king', 'white', 4, 0), piece('king', 'black', 4, 7)], {
+      players: {
+        white: player({
+          energy: 5,
+          deck: ['rook', 'knight', 'bishop'] as CardType[],
+          hand: ['pawn', 'pawn'] as CardType[],
+        }),
+        black: player(),
+      },
+    });
+    const s1 = cycleHand(s0, 'white');
+    expect(s1.players.white.energy).toBe(3); // 5 - 2
+    expect(s1.players.white.hand.length).toBe(4); // refilled
+    expect(s1.players.white.hand.length + s1.players.white.deck.length).toBe(5); // no cards lost
+  });
+
+  it('does nothing without enough energy', () => {
+    const s0 = state([piece('king', 'white', 4, 0), piece('king', 'black', 4, 7)], {
+      players: { white: player({ energy: 1, hand: ['pawn'] as CardType[] }), black: player() },
+    });
+    expect(cycleHand(s0, 'white')).toBe(s0);
   });
 });
 

@@ -2,8 +2,9 @@ import { DurableObject } from 'cloudflare:workers';
 import { DEFAULT_SPEED, GAME_TICK_MS } from '../src/game/constants';
 import {
   advanceRoom,
-  applyIntent,
   createRoom,
+  cycleRoom,
+  queueIntent,
   startGame,
   type RoomState,
 } from '../src/online/roomLogic';
@@ -68,7 +69,12 @@ export class GameRoom extends DurableObject<Env> {
     }
 
     this.sendTo(server, { t: 'assigned', side: role, code: this.code });
-    this.sendTo(server, { t: 'state', game: this.room.game, phase: this.room.phase });
+    this.sendTo(server, {
+      t: 'state',
+      game: this.room.game,
+      phase: this.room.phase,
+      pending: this.room.pending,
+    });
     this.broadcastPresence();
     this.maybeStart();
 
@@ -86,7 +92,14 @@ export class GameRoom extends DurableObject<Env> {
     const role = this.roleOf(ws);
 
     if (msg.t === 'deploy' && (role === 'white' || role === 'black')) {
-      const next = applyIntent(this.room, role, msg.handIndex, msg.file, msg.rank);
+      const next = queueIntent(this.room, role, msg.handIndex, msg.file, msg.rank);
+      if (next !== this.room) {
+        this.room = next;
+        void this.save();
+        this.broadcastState();
+      }
+    } else if (msg.t === 'cycle' && (role === 'white' || role === 'black')) {
+      const next = cycleRoom(this.room, role);
       if (next !== this.room) {
         this.room = next;
         void this.save();
@@ -181,7 +194,14 @@ export class GameRoom extends DurableObject<Env> {
   }
 
   private broadcastState(): void {
-    if (this.room) this.broadcast({ t: 'state', game: this.room.game, phase: this.room.phase });
+    if (this.room) {
+      this.broadcast({
+        t: 'state',
+        game: this.room.game,
+        phase: this.room.phase,
+        pending: this.room.pending,
+      });
+    }
   }
 
   private broadcastPresence(): void {

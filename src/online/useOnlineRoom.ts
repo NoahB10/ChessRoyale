@@ -33,7 +33,7 @@ export function useOnlineRoom(): void {
             setOnline({ presence: { white: msg.white, black: msg.black } });
             break;
           case 'state':
-            applyServerState(msg.game);
+            applyServerState(msg.game, msg.pending);
             setOnline({
               status: msg.phase === 'over' ? 'over' : msg.phase === 'playing' ? 'playing' : 'waiting',
             });

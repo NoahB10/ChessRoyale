@@ -1,6 +1,7 @@
 import { useGameStore } from '../store/gameStore';
 import { canDeploy } from '../game/gameEngine';
 import { BOARD_SIZE } from '../game/constants';
+import type { CardType, Player } from '../game/types';
 import { Square } from './Square';
 
 /**
@@ -12,6 +13,18 @@ import { Square } from './Square';
 export function Board({ flip = false }: { flip?: boolean }) {
   const state = useGameStore((s) => s.state);
   const activeDrag = useGameStore((s) => s.activeDrag);
+  const pending = useGameStore((s) => s.pending);
+
+  const ghostAt = (file: number, rank: number): { owner: Player; type: CardType } | undefined => {
+    for (const player of ['white', 'black'] as Player[]) {
+      const p = pending[player];
+      if (p && p.file === file && p.rank === rank) {
+        const type = state.players[player].hand[p.handIndex];
+        if (type) return { owner: player, type };
+      }
+    }
+    return undefined;
+  };
 
   const ranks = Array.from({ length: BOARD_SIZE }, (_, i) => (flip ? i : BOARD_SIZE - 1 - i));
   const files = Array.from({ length: BOARD_SIZE }, (_, i) => (flip ? BOARD_SIZE - 1 - i : i));
@@ -30,6 +43,7 @@ export function Board({ flip = false }: { flip?: boolean }) {
                 file={file}
                 rank={rank}
                 piece={piece}
+                ghost={piece ? undefined : ghostAt(file, rank)}
                 isDeployTarget={isDeployTarget}
                 dragging={!!activeDrag}
               />

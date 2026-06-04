@@ -25,7 +25,7 @@ function piece(
 }
 
 function player(overrides: Partial<PlayerState> = {}): PlayerState {
-  return { energy: 5, deck: [], hand: [], ...overrides };
+  return { energy: 5, deck: [], hand: [], deployReadyAt: 0, ...overrides };
 }
 
 function state(pieces: Piece[], overrides: Partial<GameState> = {}): GameState {
