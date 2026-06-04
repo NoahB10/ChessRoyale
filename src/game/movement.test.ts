@@ -96,8 +96,24 @@ describe('pawn movement and direction', () => {
 });
 
 describe('king movement', () => {
-  it('is stationary (no legal moves)', () => {
-    const king = p('king', 'white', 4, 0);
-    expect(legalMoves([king], king)).toEqual([]);
+  it('moves one square in any direction', () => {
+    const king = p('king', 'white', 4, 4); // e5, open centre
+    const d = dests([king], king);
+    expect(d.size).toBe(8);
+    expect(d).toContain('5,5');
+    expect(d).toContain('4,5');
+    expect(d).toContain('3,3');
+  });
+
+  it('is blocked by friendly pieces and can capture adjacent enemies', () => {
+    const king = p('king', 'white', 0, 0); // a1 corner -> 3 neighbours
+    const friend = p('pawn', 'white', 1, 0); // b1 friendly
+    const enemy = p('pawn', 'black', 0, 1); // a2 enemy
+    const moves = legalMoves([king, friend, enemy], king);
+    const d = new Set(moves.map((m) => `${m.to.file},${m.to.rank}`));
+    expect(d).not.toContain('1,0'); // friendly blocks
+    expect(d).toContain('1,1'); // empty diagonal
+    const capture = moves.find((m) => m.to.file === 0 && m.to.rank === 1);
+    expect(capture?.capture).toBe(true);
   });
 });

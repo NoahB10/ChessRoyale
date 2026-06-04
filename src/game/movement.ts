@@ -1,4 +1,4 @@
-import type { Move, Piece, Position } from './types';
+import type { Move, Piece, Player, Position } from './types';
 import { BOARD_SIZE, FORWARD } from './constants';
 
 type Delta = readonly [number, number];
@@ -25,6 +25,7 @@ const KNIGHT: Delta[] = [
   [-1, -2],
   [-2, -1],
 ];
+const ALL8: Delta[] = [...ORTHO, ...DIAG];
 
 export function inBounds(file: number, rank: number): boolean {
   return file >= 0 && file < BOARD_SIZE && rank >= 0 && rank < BOARD_SIZE;
@@ -97,14 +98,19 @@ function pawnMoves(pieces: Piece[], piece: Piece): Move[] {
   return moves;
 }
 
+/** King: one square in any direction, into an empty square or onto a capturable enemy. */
+export function kingMoves(pieces: Piece[], piece: Piece): Move[] {
+  return jumpMoves(pieces, piece, ALL8);
+}
+
 /**
  * Full normal-chess moves for a piece (used to detect legal captures).
- * Kings are stationary in this game, so they have no moves.
+ * The king moves one square in any direction (it is no longer stationary).
  */
 export function legalMoves(pieces: Piece[], piece: Piece): Move[] {
   switch (piece.type) {
     case 'king':
-      return [];
+      return kingMoves(pieces, piece);
     case 'pawn':
       return pawnMoves(pieces, piece);
     case 'knight':
@@ -127,7 +133,8 @@ export function stepMoves(pieces: Piece[], piece: Piece): Move[] {
   let dirs: Delta[];
   switch (piece.type) {
     case 'king':
-      return [];
+      dirs = ALL8;
+      break;
     case 'pawn': {
       const dir = FORWARD[piece.owner];
       const fr = piece.rank + dir;
@@ -166,4 +173,57 @@ export function dist2(a: Position, b: Position): number {
   const df = a.file - b.file;
   const dr = a.rank - b.rank;
   return df * df + dr * dr;
+}
+
+/** True if every square strictly between two collinear points is empty. */
+function clearBetween(pieces: Piece[], f0: number, r0: number, f1: number, r1: number): boolean {
+  const df = Math.sign(f1 - f0);
+  const dr = Math.sign(r1 - r0);
+  let f = f0 + df;
+  let r = r0 + dr;
+  while (f !== f1 || r !== r1) {
+    if (pieceAt(pieces, f, r)) return false;
+    f += df;
+    r += dr;
+  }
+  return true;
+}
+
+/**
+ * Whether square (f,r) is attacked by any piece owned by `attacker`, using full
+ * chess range (so the king flees squares a rook/bishop/queen could capture into).
+ * Pawns attack their two forward diagonals; the king attacks adjacent squares.
+ */
+export function isSquareAttacked(pieces: Piece[], f: number, r: number, attacker: Player): boolean {
+  for (const p of pieces) {
+    if (p.owner !== attacker) continue;
+    const df = f - p.file;
+    const dr = r - p.rank;
+    if (df === 0 && dr === 0) continue;
+    const adf = Math.abs(df);
+    const adr = Math.abs(dr);
+    switch (p.type) {
+      case 'pawn':
+        if (dr === FORWARD[p.owner] && adf === 1) return true;
+        break;
+      case 'knight':
+        if ((adf === 1 && adr === 2) || (adf === 2 && adr === 1)) return true;
+        break;
+      case 'king':
+        if (adf <= 1 && adr <= 1) return true;
+        break;
+      case 'rook':
+        if ((df === 0 || dr === 0) && clearBetween(pieces, p.file, p.rank, f, r)) return true;
+        break;
+      case 'bishop':
+        if (adf === adr && clearBetween(pieces, p.file, p.rank, f, r)) return true;
+        break;
+      case 'queen':
+        if ((df === 0 || dr === 0 || adf === adr) && clearBetween(pieces, p.file, p.rank, f, r)) {
+          return true;
+        }
+        break;
+    }
+  }
+  return false;
 }

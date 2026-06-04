@@ -42,7 +42,7 @@ export function createInitialState(now: number): GameState {
       owner: 'white',
       file: KING_START.white.file,
       rank: KING_START.white.rank,
-      nextActionAt: Infinity,
+      nextActionAt: now,
     },
     {
       id: nextId('bK'),
@@ -50,7 +50,7 @@ export function createInitialState(now: number): GameState {
       owner: 'black',
       file: KING_START.black.file,
       rank: KING_START.black.rank,
-      nextActionAt: Infinity,
+      nextActionAt: now,
     },
   ];
   return {
@@ -153,7 +153,7 @@ export function tick(state: GameState, now: number): GameState {
     if (s.status !== 'playing') break;
     if (removed.has(id)) continue;
     const piece = s.pieces.find((p) => p.id === id);
-    if (!piece || piece.type === 'king') continue;
+    if (!piece) continue;
     if (piece.nextActionAt > now) continue;
 
     const move = decideAction(s.pieces, piece);
