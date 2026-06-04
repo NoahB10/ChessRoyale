@@ -1,10 +1,11 @@
 import { useGameStore } from '../store/gameStore';
+import { useControllable } from '../store/useControllable';
 import type { Player } from '../game/types';
 import { Card } from './Card';
 
 export function Hand({ player }: { player: Player }) {
   const ps = useGameStore((s) => s.state.players[player]);
-  const humanControlled = useGameStore((s) => s.controllers[player].kind === 'human');
+  const humanControlled = useControllable(player);
 
   return (
     <div className={`hand hand-${player}`} data-testid={`hand-${player}`}>

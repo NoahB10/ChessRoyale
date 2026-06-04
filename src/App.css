@@ -371,3 +371,149 @@
   margin: 4px auto 0;
   line-height: 1.5;
 }
+
+/* ---------- start menu ---------- */
+.menu {
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 48px 20px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: stretch;
+}
+.menu-title {
+  font-size: 42px;
+  text-align: center;
+  margin: 0;
+}
+.menu-tag {
+  color: var(--muted);
+  text-align: center;
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+.menu-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.menu-h {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.menu-sub {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.menu-row {
+  display: flex;
+  gap: 14px;
+}
+.menu-row .control-select {
+  flex: 1;
+}
+.menu-row .control-select select {
+  width: 100%;
+}
+.menu-join {
+  display: flex;
+  gap: 8px;
+}
+.menu-join input {
+  flex: 1;
+  background: #0e0f15;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.menu-join input:focus {
+  outline: none;
+  border-color: var(--accent-2);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- online bar ---------- */
+.online-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  font-size: 13px;
+}
+.online-you,
+.online-code {
+  color: var(--muted);
+}
+.online-you b,
+.online-code b {
+  color: var(--text);
+  letter-spacing: 0.5px;
+}
+.online-status {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-weight: 700;
+  color: var(--muted);
+}
+.online-status.playing {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.online-status.waiting,
+.online-status.connecting {
+  color: #ffd76a;
+}
+.online-status.opponent_left,
+.online-status.error {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* ---------- overlay actions / share ---------- */
+.overlay-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.share-code {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.share-link {
+  width: 280px;
+  max-width: 70vw;
+  background: #0e0f15;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  text-align: center;
+}
+.share-link:focus {
+  outline: none;
+  border-color: var(--accent-2);
+}

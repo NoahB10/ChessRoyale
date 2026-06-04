@@ -11,6 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
+    "e2e:online": "playwright test -c playwright.online.config.ts",
+    "check:worker": "tsc -p worker/tsconfig.json",
+    "dev:worker": "wrangler dev",
     "deploy": "BASE_PATH=/ npm run build && npx wrangler deploy"
   },
   "dependencies": {
@@ -21,6 +24,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260604.1",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.60.0",
     "@testing-library/jest-dom": "^6.9.1",
@@ -37,6 +41,7 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "wrangler": "^4.98.0"
   }
 }

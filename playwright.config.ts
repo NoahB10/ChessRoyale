@@ -2,6 +2,8 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  // online.spec.ts needs the Worker/DO (run via playwright.online.config.ts).
+  testIgnore: 'online.spec.ts',
   timeout: 30_000,
   expect: { timeout: 5_000 },
   fullyParallel: true,

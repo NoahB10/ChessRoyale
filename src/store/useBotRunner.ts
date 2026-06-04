@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useGameStore } from './gameStore';
+import { useAppStore } from './appStore';
 import { BotScheduler, type SchedulerContext } from '../game/bot/botController';
 import { makeRng } from '../game/bot/rng';
 
@@ -28,6 +29,8 @@ export function useBotRunner(): void {
     };
 
     const id = setInterval(() => {
+      // Bots are local-only; the server runs online games.
+      if (useAppStore.getState().mode === 'online') return;
       const seq = useGameStore.getState().gameSeq;
       if (seq !== seqRef.current) {
         scheduler.reset();

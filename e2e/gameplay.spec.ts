@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { startLocalGame } from './helpers';
 
 const SOAK_MS = 60_000;
 
@@ -46,8 +47,7 @@ test('runs for 60s of real-time play without crashing or console errors', async 
   });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 
-  await page.goto('/');
-  await expect(page.getByTestId('square')).toHaveCount(64);
+  await startLocalGame(page); // Human vs Human so both hands can be deployed
 
   const start = Date.now();
   let maxPieces = 2; // two kings

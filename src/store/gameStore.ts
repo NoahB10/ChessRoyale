@@ -56,6 +56,8 @@ interface GameStore {
   advance: (realNow: number) => void;
   /** attempt to deploy a hand card; returns true if it succeeded. */
   deploy: (player: Player, handIndex: number, file: number, rank: number) => boolean;
+  /** replace the board with authoritative state from the server (online mode). */
+  applyServerState: (game: GameState) => void;
   setActiveDrag: (drag: ActiveDrag | null) => void;
   setController: (player: Player, config: ControllerConfig) => void;
   setPaused: (paused: boolean) => void;
@@ -103,6 +105,8 @@ export const useGameStore = create<GameStore>((set, get) => {
       set({ state: after });
       return true;
     },
+
+    applyServerState: (game) => set({ state: game }),
 
     setActiveDrag: (drag) => set({ activeDrag: drag }),
 

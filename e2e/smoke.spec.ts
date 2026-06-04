@@ -9,10 +9,14 @@ test('app loads and renders a playable board', async ({ page }) => {
 
   await page.goto('/');
 
-  // first screen is the game itself
+  // first screen is the start menu
+  await expect(page.getByTestId('menu')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Chess Royale' })).toBeVisible();
 
-  // board renders 64 squares
+  // starting a local game shows the board with 64 squares
+  await page.getByTestId('menu-white').selectOption('human');
+  await page.getByTestId('menu-black').selectOption('human');
+  await page.getByTestId('play-local').click();
   await expect(page.getByTestId('square')).toHaveCount(64);
 
   // both hands render with cards

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { startLocalGame } from './helpers';
 
 test('speed slider adjusts game speed live and persists across reload', async ({ page }) => {
   const errors: string[] = [];
@@ -7,7 +8,7 @@ test('speed slider adjusts game speed live and persists across reload', async ({
   });
   page.on('pageerror', (e) => errors.push(e.message));
 
-  await page.goto('/');
+  await startLocalGame(page);
 
   const slider = page.getByTestId('speed-slider');
   const input = page.getByTestId('speed-input');
@@ -27,8 +28,9 @@ test('speed slider adjusts game speed live and persists across reload', async ({
   await expect(value).toHaveText('0.20×');
   await page.screenshot({ path: 'e2e/screenshots/speed-slow.png', fullPage: true });
 
-  // reload restores the chosen speed
+  // reload restores the chosen speed (re-enter a local game after the menu)
   await page.reload();
+  await page.getByTestId('play-local').click();
   await expect(page.getByTestId('speed-value')).toHaveText('0.20×');
 
   expect(errors, `console errors:\n${errors.join('\n')}`).toEqual([]);

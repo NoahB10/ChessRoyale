@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { startLocalGame } from './helpers';
 
 test('bots play on their own, pause freezes them, and restart works', async ({ page }) => {
   const errors: string[] = [];
@@ -7,10 +8,9 @@ test('bots play on their own, pause freezes them, and restart works', async ({ p
   });
   page.on('pageerror', (e) => errors.push(e.message));
 
-  await page.goto('/');
-  await expect(page.getByTestId('square')).toHaveCount(64);
+  await startLocalGame(page);
 
-  // Bot vs Bot: white hard, black easy.
+  // Bot vs Bot: white hard, black easy (set via the in-game controls).
   await page.getByTestId('controller-white').selectOption('hard');
   await page.getByTestId('controller-black').selectOption('easy');
 

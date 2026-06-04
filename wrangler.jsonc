@@ -1,18 +1,27 @@
 {
-  // Cloudflare Workers (static assets) config for ChessRoyale.
+  // Cloudflare Workers config for ChessRoyale.
+  // Static SPA assets + a Worker that routes /api/room/:code/ws WebSocket
+  // connections to a per-room GameRoom Durable Object (authoritative game server).
   // Deploy: BASE_PATH=/ npm run build && npx wrangler deploy
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "chessroyale",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-06-01",
   // Custom domain is the canonical URL; skip the *.workers.dev subdomain.
   "workers_dev": false,
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     // SPA fallback: serve index.html for unknown paths instead of a 404.
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    // The Worker runs first only for the API; everything else is asset-first.
+    "run_worker_first": ["/api/*"]
   },
+  "durable_objects": {
+    "bindings": [{ "name": "GAME_ROOM", "class_name": "GameRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
   // Auto-provisions the custom domain (DNS record + SSL) on deploy,
   // since one10designs.com is a zone in this Cloudflare account.
-  "routes": [
-    { "pattern": "chessroyale.one10designs.com", "custom_domain": true }
-  ]
+  "routes": [{ "pattern": "chessroyale.one10designs.com", "custom_domain": true }]
 }
